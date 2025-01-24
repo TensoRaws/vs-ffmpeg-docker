@@ -94,29 +94,29 @@ RUN git clone https://github.com/FFmpeg/nv-codec-headers --depth 1 && \
   cd nv-codec-headers && make -j$(nproc) && make install
 
 RUN git clone https://github.com/gypified/libmp3lame --depth 1 && \
-  cd libmp3lame && ./configure --enable-nasm --enable-static && make -j$(nproc) install
+  cd libmp3lame && ./configure --enable-nasm --enable-static --enable-shared && make -j$(nproc) install
 
 RUN git clone https://github.com/mstorsjo/fdk-aac --depth 1 && \
-  cd fdk-aac && ./autogen.sh && ./configure --enable-static && make -j$(nproc) install
+  cd fdk-aac && ./autogen.sh && ./configure --enable-static --enable-shared && make -j$(nproc) install
 
 RUN git clone https://github.com/xiph/ogg --depth 1 && \
-  cd ogg && ./autogen.sh && ./configure --enable-static && make -j$(nproc) install
+  cd ogg && ./autogen.sh && ./configure --enable-static --enable-shared && make -j$(nproc) install
 
 RUN git clone https://github.com/xiph/vorbis --depth 1 && \
-  cd vorbis && ./autogen.sh && ./configure --enable-static && make -j$(nproc) install
+  cd vorbis && ./autogen.sh && ./configure --enable-static --enable-shared && make -j$(nproc) install
 
 RUN git clone https://github.com/xiph/opus --depth 1 && \
-  cd opus && ./autogen.sh && ./configure --enable-static && make -j$(nproc) install
+  cd opus && ./autogen.sh && ./configure --enable-static --enable-shared && make -j$(nproc) install
 
 RUN git clone https://github.com/xiph/theora --depth 1 && \
-  cd theora && ./autogen.sh && ./configure --disable-examples --enable-static && make -j$(nproc) install
+  cd theora && ./autogen.sh && ./configure --disable-examples --enable-static --enable-shared && make -j$(nproc) install
 
 RUN git clone https://github.com/webmproject/libvpx --depth 1 && \
-  cd libvpx && ./configure --enable-vp9-highbitdepth --disable-unit-tests --disable-examples --enable-static && \
+  cd libvpx && ./configure --enable-vp9-highbitdepth --disable-unit-tests --disable-examples --enable-static --enable-shared && \
   make -j$(nproc) install
 
 RUN git clone https://code.videolan.org/videolan/x264.git --depth 1 && \
-  cd x264 && ./configure --enable-pic --enable-static && make -j$(nproc) install
+  cd x264 && ./configure --enable-pic --enable-static --enable-shared && make -j$(nproc) install
 
 ARG X265_VERSION=4.1
 ARG X265_URL="https://bitbucket.org/multicoreware/x265_git/downloads/x265_$X265_VERSION.tar.gz"
@@ -126,20 +126,26 @@ RUN wget -O x265_git.tar.bz2 "$X265_URL" && tar xf x265_git.tar.bz2 && cd x265_*
   make -C 8bit -j$(nproc) install
 
 RUN git clone https://github.com/webmproject/libwebp --depth 1 && \
-  cd libwebp && ./autogen.sh && ./configure --enable-static && make -j$(nproc) install
+  cd libwebp && ./autogen.sh && ./configure --enable-static --enable-shared && make -j$(nproc) install
 
 RUN git clone https://github.com/xiph/speex --depth 1 && \
-  cd speex && ./autogen.sh && ./configure --enable-static && make -j$(nproc) install
+  cd speex && ./autogen.sh && ./configure --enable-static --enable-shared && make -j$(nproc) install
 
 RUN git clone --depth 1 https://aomedia.googlesource.com/aom --depth 1 && \
-  cd aom && \
-  mkdir build_tmp && cd build_tmp && cmake -DENABLE_TESTS=0 -DENABLE_NASM=on -DCMAKE_INSTALL_LIBDIR=lib .. && make -j$(nproc) install
+  cd aom && mkdir build_tmp && cd build_tmp && \
+  cmake \
+    -DENABLE_TESTS=OFF \
+    -DENABLE_NASM=ON \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DBUILD_SHARED_LIBS=ON \
+    .. && \
+    make -j$(nproc) install
 
 RUN git clone https://github.com/georgmartius/vid.stab --depth 1 && \
-  cd vid.stab && cmake . && make -j$(nproc) install
+  cd vid.stab && cmake -DBUILD_SHARED_LIBS=on . && make -j$(nproc) install
 
 RUN git clone https://github.com/ultravideo/kvazaar --depth 1 && \
-  cd kvazaar && ./autogen.sh && ./configure --enable-static && make -j$(nproc) install
+  cd kvazaar && ./autogen.sh && ./configure --enable-static --enable-shared && make -j$(nproc) install
 
 # dependencies for libass and ffmpeg
 RUN apt install libfreetype-dev libfribidi-dev libfontconfig-dev -y
@@ -147,13 +153,13 @@ RUN apt install libfreetype-dev libfribidi-dev libfontconfig-dev -y
 RUN apt install libharfbuzz-dev libunibreak-dev -y
 # libass
 RUN git clone https://github.com/libass/libass --depth 1 && \
-  cd libass && ./autogen.sh && ./configure --enable-static && make -j$(nproc) && make install
+  cd libass && ./autogen.sh && ./configure --enable-static --enable-shared && make -j$(nproc) && make install
 
 RUN git clone https://github.com/uclouvain/openjpeg --depth 1 && \
   cd openjpeg && cmake -G "Unix Makefiles" && make -j$(nproc) install
 
 RUN git clone https://code.videolan.org/videolan/dav1d --depth 1 && \
-  cd dav1d && meson build --buildtype release -Ddefault_library=static && ninja -C build install
+  cd dav1d && meson build --buildtype release && ninja -C build install
 
 # add extra CFLAGS that are not enabled by -O3
 # http://websvn.xvid.org/cvs/viewvc.cgi/trunk/xvidcore/build/generic/configure.in?revision=2146&view=markup
@@ -185,11 +191,11 @@ RUN git clone https://github.com/gianni-rosato/svt-av1-psy --depth 1 && \
     make -j$(nproc) install
 
 RUN git clone https://github.com/pkuvcl/davs2 --depth 1 && \
-  cd davs2/build/linux && ./configure --disable-asm --enable-pic && \
+  cd davs2/build/linux && ./configure --disable-asm --enable-pic --enable-static --enable-shared && \
   make -j$(nproc) install
 
 RUN git clone https://github.com/Netflix/vmaf --depth 1 && \
-  cd vmaf/libvmaf && meson build --buildtype release && ninja -vC build install
+  cd vmaf/libvmaf && meson build --buildtype release && ninja -C build install
 
 RUN git clone https://github.com/cisco/openh264 --depth 1 && \
   cd openh264 && meson build --buildtype release && ninja -C build install
