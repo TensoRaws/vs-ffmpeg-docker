@@ -17,7 +17,7 @@ Build latest FFmpeg and VapourSynth from source, and most compilers and build to
 - VapourSynth: R70
 - x264: latest
 - x265: 4.1
-- svt-av1: latest
+- svt-av1-psy: latest
 - aom: latest
 - libvpx: latest
 - fdk-aac: latest
