@@ -164,11 +164,11 @@ ARG XVID_VERSION=1.3.7
 ARG XVID_URL="https://downloads.xvid.com/downloads/xvidcore-$XVID_VERSION.tar.gz"
 ARG XVID_SHA256=abbdcbd39555691dd1c9b4d08f0a031376a3b211652c0d8b3b8aa9be1303ce2d
 RUN wget -O libxvid.tar.gz "$XVID_URL" && \
-  echo "$XVID_SHA256  libxvid.tar.gz" | sha256sum --status -c - && \
-  tar xf libxvid.tar.gz && \
-  cd xvidcore/build/generic && \
-  CFLAGS="$CFLAGS -fstrength-reduce -ffast-math" \
-    ./configure && make -j$(nproc) && make install
+    echo "$XVID_SHA256  libxvid.tar.gz" | sha256sum --status -c - && \
+    tar xf libxvid.tar.gz && \
+    cd xvidcore/build/generic && \
+    CFLAGS="-O2 -fno-strict-overflow -fstack-protector-all -fPIE -fstrength-reduce -ffast-math" ./configure && \
+    make -j$(nproc) && make install
 
 # configure use tcl sh
 RUN git clone https://github.com/Haivision/srt --depth 1 && \
