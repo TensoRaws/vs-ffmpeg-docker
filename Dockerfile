@@ -33,21 +33,17 @@ RUN apt install -y \
 ###
 
 # from https://github.com/styler00dollar/VSGAN-tensorrt-docker/blob/main/Dockerfile#L382
-RUN apt install autoconf libtool nasm ninja-build yasm pkg-config -y
-
-RUN apt --fix-broken install
-
-RUN pip install meson ninja cython
+RUN apt install autoconf libtool nasm ninja-build yasm pkg-config checkinstall -y && \
+    apt --fix-broken install && \
+    pip install meson ninja cython
 
 # install g++13
-RUN apt install build-essential manpages-dev software-properties-common -y
-RUN add-apt-repository ppa:ubuntu-toolchain-r/test -y
-RUN apt update -y && apt install gcc-13 g++-13 -y
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 13
-RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 13
-
-# install checkinstall
-RUN apt install checkinstall -y
+RUN apt install build-essential manpages-dev software-properties-common -y && \
+    add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
+    apt update -y && \
+    apt install gcc-13 g++-13 -y && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 13 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 13
 
 ###
 # Set the working directory for VapourSynth and FFmpeg
@@ -61,8 +57,8 @@ WORKDIR /workspace
 # zimg
 # setting pkg version manually since otherwise 'Version' field value '-1': version number is empty
 RUN git clone https://github.com/sekrit-twc/zimg --recursive && cd zimg && \
-  ./autogen.sh && ./configure && make -j$(nproc) && make install
-RUN cd zimg && checkinstall -y -pkgversion=0.0 && apt install /workspace/zimg/zimg_0.0-1_amd64.deb -y
+  ./autogen.sh && ./configure && make -j$(nproc) && make install && \
+  checkinstall -y -pkgversion=0.0 && apt install ./zimg_0.0-1_amd64.deb -y
 
 ### Install VapourSynth
 ARG VAPOURSYNTH_VERSION=R70
@@ -76,14 +72,17 @@ RUN cd vapoursynth && python setup.py install
 # Install FFmpeg with Encoders
 ###
 
-# -O3 makes sure we compile with optimization. setting CFLAGS/CXXFLAGS seems to override
-# default automake cflags.
-# -static-libgcc is needed to make gcc not include gcc_s as "as-needed" shared library which
-# cmake will include as a implicit library.
-# other options to get hardened build (same as ffmpeg hardened)
-ARG CFLAGS="-O3 -static-libgcc -fno-strict-overflow -fstack-protector-all -fPIE"
-ARG CXXFLAGS="-O3 -static-libgcc -fno-strict-overflow -fstack-protector-all -fPIE"
-ARG LDFLAGS="-Wl,-z,relro,-z,now"
+# --- prerequisites ---
+
+RUN apt install -y \
+    tcl \
+    libfreetype-dev \
+    libfribidi-dev \
+    libfontconfig-dev \
+    libharfbuzz-dev \
+    libunibreak-dev \
+    libsoxr-dev \
+    libxml2-dev
 
 # Vulkan-Headers
 RUN git clone https://github.com/KhronosGroup/Vulkan-Headers.git --depth 1 && \
@@ -148,9 +147,7 @@ RUN git clone https://github.com/ultravideo/kvazaar --depth 1 && \
   cd kvazaar && ./autogen.sh && ./configure --enable-static --enable-shared && make -j$(nproc) install
 
 # dependencies for libass and ffmpeg
-RUN apt install libfreetype-dev libfribidi-dev libfontconfig-dev -y
-# dependencies for libass
-RUN apt install libharfbuzz-dev libunibreak-dev -y
+# libfreetype-dev libfribidi-dev libfontconfig-dev libharfbuzz-dev libunibreak-dev
 # libass
 RUN git clone https://github.com/libass/libass --depth 1 && \
   cd libass && ./autogen.sh && ./configure --enable-static --enable-shared && make -j$(nproc) && make install
@@ -167,14 +164,13 @@ ARG XVID_VERSION=1.3.7
 ARG XVID_URL="https://downloads.xvid.com/downloads/xvidcore-$XVID_VERSION.tar.gz"
 ARG XVID_SHA256=abbdcbd39555691dd1c9b4d08f0a031376a3b211652c0d8b3b8aa9be1303ce2d
 RUN wget -O libxvid.tar.gz "$XVID_URL" && \
-  echo "$XVID_SHA256  libxvid.tar.gz" | sha256sum --status -c - && \
-  tar xf libxvid.tar.gz && \
-  cd xvidcore/build/generic && \
-  CFLAGS="$CFLAGS -fstrength-reduce -ffast-math" \
-    ./configure && make -j$(nproc) && make install
+    echo "$XVID_SHA256  libxvid.tar.gz" | sha256sum --status -c - && \
+    tar xf libxvid.tar.gz && \
+    cd xvidcore/build/generic && \
+    CFLAGS="-O2 -fno-strict-overflow -fstack-protector-all -fPIE -fstrength-reduce -ffast-math" ./configure && \
+    make -j$(nproc) && make install
 
 # configure use tcl sh
-RUN apt install tcl -y
 RUN git clone https://github.com/Haivision/srt --depth 1 && \
   cd srt && ./configure --cmake-install-libdir=lib --cmake-install-includedir=include --cmake-install-bindir=bin && \
   make -j$(nproc) && make install
@@ -203,11 +199,9 @@ RUN git clone https://github.com/cisco/openh264 --depth 1 && \
 RUN git clone https://github.com/mpeg5/xeve && \
   cd xeve && mkdir build && cd build && cmake .. && make -j$(nproc) && make install
 
-# dependencies for ffmpeg
-RUN apt install libsoxr-dev libxml2-dev -y
-RUN git clone https://github.com/FFmpeg/FFmpeg --depth 1
-RUN cd FFmpeg && \
-  CFLAGS="${CFLAGS}" && \
+# dependencies for ffmpeg: libsoxr-dev libxml2-dev
+RUN git clone https://github.com/FFmpeg/FFmpeg --depth 1 && cd FFmpeg && \
+  CFLAGS="-O3 -static-libgcc -fno-strict-overflow -fstack-protector-all -fPIE" && \
     ./configure \
     --extra-cflags="-fopenmp -lcrypto -lz -ldl" \
     --extra-cxxflags="-fopenmp -lcrypto -lz -ldl" \
